@@ -5,7 +5,9 @@
 #   ./run-local.sh https://xxx.trycloudflare.com    # Colab tunnel
 #
 # Qdrant and MinIO come from docker-compose; MinIO credentials come from .env,
-# never from appsettings.
+# never from appsettings. Postgres defaults to the rag_test sandbox container
+# (localhost:5433) - never the real TicketSystem database - override with
+# AI_DB_CONNECTION for anything else.
 set -euo pipefail
 
 repo_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -33,6 +35,7 @@ set -a; source "$repo_dir/.env"; set +a
 
 dotnet build "$api_dir" --nologo --verbosity quiet
 
+ConnectionStrings__AiDb="${AI_DB_CONNECTION:-Host=localhost;Port=5433;Database=rag_test;Username=raguser;Password=devtest123;Search Path=ai}" \
 Storage__AccessKey="$MINIO_ROOT_USER" \
 Storage__SecretKey="$MINIO_ROOT_PASSWORD" \
 Ollama__Host="$ollama_host" \

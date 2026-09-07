@@ -40,8 +40,10 @@ public class DocumentIndex
     }
 
     // filePath points at a local copy of the document; DocumentLibrary owns
-    // that file's lifetime. Returns how many chunks reached the index.
-    public async Task<int> IndexFileAsync(
+    // that file's lifetime. Returns the chunks that reached the index, so a
+    // caller that needs an audit trail (ContentChunk rows) doesn't have to
+    // recompute point IDs or re-split the text to get it.
+    public async Task<IReadOnlyList<IndexedChunk>> IndexFileAsync(
         string filePath,
         StoredDocument document,
         string? language = null,
@@ -55,19 +57,18 @@ public class DocumentIndex
         if (chunks.Count == 0)
         {
             progress?.Report("Hujjatdan matn topilmadi.");
-            return 0;
+            return [];
         }
 
         var vectors = await EmbedInBatchesAsync(chunks, progress, ct);
+        var baseId = (ulong)DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
 
         progress?.Report("Bazaga yozilyapti...");
-        await _qdrant.UpsertAsync(
-            _qdrantOptions.Collection,
-            BuildPoints(document, language, chunks, vectors),
-            cancellationToken: ct);
+        var points = BuildPoints(baseId, document, language, chunks, vectors);
+        await _qdrant.UpsertAsync(_qdrantOptions.Collection, points, cancellationToken: ct);
 
         progress?.Report($"Tayyor: {chunks.Count} ta bo'lak saqlandi.");
-        return chunks.Count;
+        return chunks.Select((text, i) => new IndexedChunk(baseId + (ulong)i, text)).ToList();
     }
 
     // scope: pass a conversation's scope to search its own uploads alongside
@@ -145,12 +146,12 @@ public class DocumentIndex
     }
 
     private static List<PointStruct> BuildPoints(
+        ulong baseId,
         StoredDocument document,
         string? language,
         IReadOnlyList<string> chunks,
         IReadOnlyList<float[]> vectors)
     {
-        var baseId = (ulong)DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
         var points = new List<PointStruct>(chunks.Count);
 
         for (var i = 0; i < chunks.Count; i++)
