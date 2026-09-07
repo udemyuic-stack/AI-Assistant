@@ -1,44 +1,57 @@
 using System.Runtime.CompilerServices;
+using System.Text;
+using AiAssistant.Api.Configuration;
+using AiAssistant.Api.Models;
+using Microsoft.Extensions.Options;
 
 namespace AiAssistant.Api.Services;
 
-// Ties retrieval + generation together. System prompt is config-driven so the
-// same binary serves different domains (ticket support, legal advisor, etc.)
-// - only appsettings/env changes between deployments, no code fork.
-public class ChatOrchestrator(OllamaService ollama, QdrantRagService rag, IConfiguration config)
+// Retrieval plus generation behind a single call. The stream ends with a
+// Completed event carrying the full text, the chunks that fed the prompt, and
+// the language check - so a caller forwards events and never has to reassemble
+// the answer to find out what happened.
+//
+// The system prompt comes from configuration, which is the whole reason this
+// service can serve ticket support and, unchanged, a legal assistant.
+public class ChatOrchestrator(
+    OllamaClient ollama,
+    DocumentIndex index,
+    IOptions<AssistantOptions> assistantOptions,
+    IOptions<RagOptions> ragOptions)
 {
-    private readonly string _systemPrompt = config["Assistant:SystemPrompt"]
-        ?? "Siz — foydalanuvchiga faqat berilgan kontekst (hujjatlar va baza ma'lumotlari) asosida javob beradigan yordamchisiz.";
-    private readonly double _temperature = double.Parse(config["Rag:Temperature"] ?? "0.0");
+    private readonly AssistantOptions _assistant = assistantOptions.Value;
+    private readonly RagOptions _rag = ragOptions.Value;
 
-    // Cyrillic letters that only appear in Russian, never in Uzbek Cyrillic
-    // or Latin script. A generated answer containing these almost certainly
-    // drifted into Russian - the caller should retry with a stronger nudge.
-    private static readonly char[] RussianOnlyLetters = ['ы', 'э', 'ъ', 'ё'];
-
-    public async IAsyncEnumerable<string> AskAsync(
-        string userMessage,
-        string? ticketScope = null,
+    public async IAsyncEnumerable<AnswerEvent> AskAsync(
+        string question,
+        RetrievalScope? scope = null,
         [EnumeratorCancellation] CancellationToken ct = default)
     {
-        var context = await rag.SearchAsync(userMessage, ticketScope);
+        var retrieval = await index.SearchAsync(question, scope, ct);
 
-        var userContent = string.IsNullOrEmpty(context)
-            ? userMessage
-            : $"Hujjatlardan olingan kontekst:\n\n{context}\n\n---\n\nSavol: {userMessage}";
-
-        var requestMessages = new[]
+        var messages = new[]
         {
-            ("system", _systemPrompt),
-            ("user",   userContent)
+            ("system", _assistant.SystemPrompt),
+            ("user", BuildUserMessage(question, retrieval))
         };
 
-        await foreach (var chunk in ollama.ChatStreamAsync(requestMessages, _temperature, ct))
-            yield return chunk;
+        var answer = new StringBuilder();
+
+        await foreach (var token in ollama.StreamChatAsync(messages, _rag.Temperature, ct))
+        {
+            answer.Append(token);
+            yield return new AnswerEvent.Token(token);
+        }
+
+        var fullText = answer.ToString();
+        yield return new AnswerEvent.Completed(new AnswerSummary(
+            FullText: fullText,
+            ContextUsed: retrieval.Chunks,
+            LanguageDriftSuspected: UzbekLanguageGuard.LooksLikeRussian(fullText)));
     }
 
-    // Cheap post-hoc guard: true if the text looks like it drifted into
-    // Russian instead of Uzbek. Callers decide what to do (retry, flag, log).
-    public static bool LooksLikeRussianDrift(string text) =>
-        text.Length > 20 && text.Count(c => RussianOnlyLetters.Contains(c)) > 2;
+    private static string BuildUserMessage(string question, RetrievalResult retrieval) =>
+        retrieval.IsEmpty
+            ? question
+            : $"Kontekst:\n\n{retrieval.PromptContext}\n\n---\n\nSavol: {question}";
 }

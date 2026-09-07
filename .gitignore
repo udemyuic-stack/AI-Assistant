@@ -2,3 +2,5 @@ bin/
 obj/
 *.user
 appsettings.Development.json
+.env
+.run/
