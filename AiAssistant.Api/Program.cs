@@ -1,12 +1,21 @@
 using System.Text.Json;
 using AiAssistant.Api.Configuration;
+using AiAssistant.Api.Data;
 using AiAssistant.Api.Models;
 using AiAssistant.Api.Services;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
 using Minio;
 using Refit;
 
 var builder = WebApplication.CreateBuilder(args);
+
+// Same physical Postgres instance as TicketSystem, own schema ("ai") and own
+// migration history - see Data/AiDbContext.cs for why the two never collide.
+builder.Services.AddDbContext<AiDbContext>(options =>
+    options.UseNpgsql(
+        builder.Configuration.GetConnectionString("AiDb"),
+        npgsql => npgsql.MigrationsHistoryTable("__EFMigrationsHistory", "ai")));
 
 builder.Services.Configure<OllamaOptions>(builder.Configuration.GetSection(OllamaOptions.SectionName));
 builder.Services.Configure<QdrantOptions>(builder.Configuration.GetSection(QdrantOptions.SectionName));
