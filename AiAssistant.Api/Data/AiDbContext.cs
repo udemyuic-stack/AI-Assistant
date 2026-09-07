@@ -22,6 +22,7 @@ public class AiDbContext(DbContextOptions<AiDbContext> options) : DbContext(opti
     public DbSet<FeedbackMark> FeedbackMarks => Set<FeedbackMark>();
     public DbSet<Rubric> Rubrics => Set<Rubric>();
     public DbSet<SysParam> SysParams => Set<SysParam>();
+    public DbSet<SlangTerm> SlangTerms => Set<SlangTerm>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

@@ -16,6 +16,7 @@ namespace AiAssistant.Api.Services;
 public class ChatOrchestrator(
     OllamaClient ollama,
     DocumentIndex index,
+    QueryPreprocessor preprocessor,
     IOptions<AssistantOptions> assistantOptions,
     IOptions<RagOptions> ragOptions)
 {
@@ -27,7 +28,10 @@ public class ChatOrchestrator(
         RetrievalScope? scope = null,
         [EnumeratorCancellation] CancellationToken ct = default)
     {
-        var retrieval = await index.SearchAsync(question, scope, ct);
+        // Pre-retrieval: slang normalisation, then optional expansion into
+        // several phrasings. Retrieval searches all of them and merges.
+        var phrasings = await preprocessor.PrepareAsync(question, ct);
+        var retrieval = await index.SearchAsync(phrasings, scope, ct);
 
         var messages = new[]
         {
@@ -44,6 +48,13 @@ public class ChatOrchestrator(
         }
 
         var fullText = answer.ToString();
+
+        // Deliberately not auto-retried: tokens already streamed to the caller
+        // can't be un-sent, so a real fix means generating the full answer
+        // before streaming anything - doubling latency on an already-slow
+        // CPU host for a failure mode the system prompt's few-shot examples
+        // make rare in practice. Flag it; let the caller decide (re-ask,
+        // show a warning, log for the gold set).
         yield return new AnswerEvent.Completed(new AnswerSummary(
             FullText: fullText,
             ContextUsed: retrieval.Chunks,

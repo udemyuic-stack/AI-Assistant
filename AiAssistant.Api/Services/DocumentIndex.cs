@@ -23,20 +23,29 @@ public class DocumentIndex
     private readonly QdrantClient _qdrant;
     private readonly QdrantOptions _qdrantOptions;
     private readonly RagOptions _ragOptions;
+    private readonly SysParamCache _sysParams;
     private readonly SemaphoreSlim _initLock = new(1, 1);
     private bool _collectionReady;
 
+    // QdrantClient is injected, not constructed here, so its lifetime (a
+    // Singleton connection) stays independent of this class's own lifetime.
+    // DocumentIndex needs SysParamCache, which needs AiDbContext, which is
+    // Scoped - making DocumentIndex Singleton too would make it a captive
+    // dependency holding a Scoped service past its intended lifetime.
     public DocumentIndex(
         OllamaClient ollama,
         DocumentTextExtractor extractor,
+        QdrantClient qdrant,
+        SysParamCache sysParams,
         IOptions<QdrantOptions> qdrantOptions,
         IOptions<RagOptions> ragOptions)
     {
         _ollama = ollama;
         _extractor = extractor;
+        _qdrant = qdrant;
+        _sysParams = sysParams;
         _qdrantOptions = qdrantOptions.Value;
         _ragOptions = ragOptions.Value;
-        _qdrant = new QdrantClient(_qdrantOptions.Host, _qdrantOptions.GrpcPort);
     }
 
     // filePath points at a local copy of the document; DocumentLibrary owns
@@ -73,31 +82,65 @@ public class DocumentIndex
 
     // scope: pass a conversation's scope to search its own uploads alongside
     // the shared knowledge base. Omit it for global-only retrieval.
-    public async Task<RetrievalResult> SearchAsync(
+    public Task<RetrievalResult> SearchAsync(
         string question,
+        RetrievalScope? scope = null,
+        CancellationToken ct = default) =>
+        SearchAsync([question], scope, ct);
+
+    // Multi-query retrieval: each phrasing is searched separately and the
+    // results are merged. A document only reachable by its Russian wording
+    // still surfaces for an Uzbek question, which single-query vector search
+    // cannot do (QueryPreprocessor produces the phrasings).
+    //
+    // Merge keeps the best score per point: the same chunk found by two
+    // phrasings is one result, ranked by whichever phrasing matched it best.
+    public async Task<RetrievalResult> SearchAsync(
+        IReadOnlyList<string> questions,
         RetrievalScope? scope = null,
         CancellationToken ct = default)
     {
         await EnsureCollectionAsync(ct);
 
-        var vector = await _ollama.EmbedAsync(question, ct);
-
         var readable = scope is null || scope.Value.IsGlobal
             ? [RetrievalScope.GlobalValue]
             : new[] { RetrievalScope.GlobalValue, scope.Value.Value };
+        var scopeFilter = MatchAnyScope(readable);
 
-        var candidates = await _qdrant.SearchAsync(
-            collectionName: _qdrantOptions.Collection,
-            vector: vector,
-            filter: MatchAnyScope(readable),
-            limit: (ulong)_ragOptions.TopK,
-            scoreThreshold: _ragOptions.SimilarityThreshold,
-            cancellationToken: ct);
+        var bestByPoint = new Dictionary<ulong, (RetrievedChunk Chunk, float Score)>();
 
-        if (candidates.Count == 0) return RetrievalResult.Empty;
+        foreach (var question in questions)
+        {
+            var vector = await _ollama.EmbedAsync(question, ct);
 
-        var found = candidates.Select(ToChunk).ToList();
-        return new RetrievalResult(SelectContext(found, question));
+            var candidates = await _qdrant.SearchAsync(
+                collectionName: _qdrantOptions.Collection,
+                vector: vector,
+                filter: scopeFilter,
+                limit: (ulong)_ragOptions.TopK,
+                scoreThreshold: _ragOptions.SimilarityThreshold,
+                cancellationToken: ct);
+
+            foreach (var candidate in candidates)
+            {
+                var pointId = candidate.Id.Num;
+                if (bestByPoint.TryGetValue(pointId, out var existing) && existing.Score >= candidate.Score)
+                    continue;
+
+                bestByPoint[pointId] = (ToChunk(candidate), candidate.Score);
+            }
+        }
+
+        if (bestByPoint.Count == 0) return RetrievalResult.Empty;
+
+        var found = bestByPoint.Values
+            .OrderByDescending(entry => entry.Score)
+            .Select(entry => entry.Chunk)
+            .ToList();
+
+        // The first phrasing is the user's own words - the right one to
+        // stem-match against, since the expansions are the model's paraphrase.
+        return new RetrievalResult(SelectContext(found, questions[0]));
     }
 
     // Vector search alone misses inflected forms: Uzbek and Russian both attach

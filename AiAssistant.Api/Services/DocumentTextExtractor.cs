@@ -11,7 +11,7 @@ public class DocumentTextExtractor(RagOptions options)
 {
     public IReadOnlyList<string> ExtractChunks(string filePath, string fileName)
     {
-        var text = ReadText(filePath, fileName);
+        var text = TextNormalizer.Normalize(ReadText(filePath, fileName));
         return SplitIntoChunks(text);
     }
 

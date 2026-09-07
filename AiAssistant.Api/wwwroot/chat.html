@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="uz">
+<head>
+<meta charset="UTF-8">
+<title>AI Yordamchi — sinov</title>
+<style>
+  body { font-family: system-ui, sans-serif; max-width: 700px; margin: 40px auto; padding: 0 16px; }
+  h1 { font-size: 18px; color: #333; }
+  #messages { border: 1px solid #ddd; border-radius: 8px; padding: 16px; min-height: 300px;
+              max-height: 500px; overflow-y: auto; margin-bottom: 12px; background: #fafafa; }
+  .msg { margin-bottom: 16px; white-space: pre-wrap; line-height: 1.5; }
+  .msg.user { color: #1a5fb4; font-weight: 600; }
+  .msg.assistant { color: #222; }
+  .sources { font-size: 12px; color: #888; margin-top: 4px; }
+  #row { display: flex; gap: 8px; }
+  #q { flex: 1; padding: 10px; border: 1px solid #ccc; border-radius: 6px; font-size: 14px; }
+  button { padding: 10px 20px; border: none; border-radius: 6px; background: #1a5fb4; color: white;
+           font-size: 14px; cursor: pointer; }
+  button:disabled { background: #aaa; cursor: default; }
+</style>
+</head>
+<body>
+<h1>AI Yordamchi — mahalliy sinov</h1>
+<div id="messages"></div>
+<div id="row">
+  <input id="q" type="text" placeholder="Savolingizni yozing..." autofocus>
+  <button id="send">Yuborish</button>
+</div>
+
+<script>
+const messagesEl = document.getElementById('messages');
+const input = document.getElementById('q');
+const button = document.getElementById('send');
+
+function addMessage(role, text) {
+  const div = document.createElement('div');
+  div.className = 'msg ' + role;
+  div.textContent = text;
+  messagesEl.appendChild(div);
+  messagesEl.scrollTop = messagesEl.scrollHeight;
+  return div;
+}
+
+async function ask() {
+  const question = input.value.trim();
+  if (!question) return;
+
+  input.value = '';
+  button.disabled = true;
+  addMessage('user', question);
+  const answerEl = addMessage('assistant', '');
+
+  const response = await fetch('/api/chat/stream', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ message: question })
+  });
+
+  const reader = response.body.getReader();
+  const decoder = new TextDecoder();
+  let buffer = '';
+
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    buffer += decoder.decode(value, { stream: true });
+
+    const lines = buffer.split('\n\n');
+    buffer = lines.pop();
+
+    for (const line of lines) {
+      if (!line.startsWith('data: ')) continue;
+      const payload = line.slice(6);
+      if (payload === '[DONE]') continue;
+
+      const data = JSON.parse(payload);
+      if (data.token) answerEl.textContent += data.token;
+      if (data.error) answerEl.textContent += '\n[XATO] ' + data.error;
+      if (data.done && data.sources && data.sources.length) {
+        const src = document.createElement('div');
+        src.className = 'sources';
+        src.textContent = 'Manba: ' + data.sources.join(', ');
+        answerEl.appendChild(src);
+      }
+    }
+  }
+
+  button.disabled = false;
+  input.focus();
+}
+
+button.addEventListener('click', ask);
+input.addEventListener('keydown', e => { if (e.key === 'Enter') ask(); });
+</script>
+</body>
+</html>

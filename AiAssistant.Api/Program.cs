@@ -7,6 +7,7 @@ using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
 using Minio;
+using Qdrant.Client;
 using Refit;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -81,17 +82,34 @@ builder.Services.AddSingleton<IMinioClient>(sp =>
         .Build();
 });
 
+// One gRPC connection for the process, not one per request.
+builder.Services.AddSingleton(sp =>
+{
+    var options = sp.GetRequiredService<IOptions<QdrantOptions>>().Value;
+    return new QdrantClient(options.Host, options.GrpcPort);
+});
+
+builder.Services.AddMemoryCache();
+
 builder.Services.AddSingleton(sp => sp.GetRequiredService<IOptions<RagOptions>>().Value);
 builder.Services.AddSingleton<DocumentTextExtractor>();
 builder.Services.AddSingleton<OllamaClient>();
 builder.Services.AddSingleton<DocumentStorage>();
-builder.Services.AddSingleton<DocumentIndex>();
+
+// Scoped, not Singleton: these reach AiDbContext (via SysParamCache and
+// SlangDictionary), which is Scoped. A Singleton holding it would be a
+// captive dependency - one DbContext shared across every concurrent request.
+builder.Services.AddScoped<SysParamCache>();
+builder.Services.AddScoped<SlangDictionary>();
+builder.Services.AddScoped<QueryPreprocessor>();
+builder.Services.AddScoped<DocumentIndex>();
 builder.Services.AddScoped<DocumentLibrary>();
 builder.Services.AddScoped<WebScraperService>();
 builder.Services.AddScoped<ChatOrchestrator>();
 
 var app = builder.Build();
 
+app.UseStaticFiles();
 app.UseRateLimiter();
 
 app.MapGet("/health", () => Results.Ok(new { status = "ok" }));
