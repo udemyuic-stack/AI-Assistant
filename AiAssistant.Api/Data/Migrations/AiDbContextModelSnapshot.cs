@@ -155,6 +155,10 @@ namespace AiAssistant.Api.Data.Migrations
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("timestamp with time zone");
 
+                    b.Property<string>("GuestKey")
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
+
                     b.Property<bool>("LanguageDriftSuspected")
                         .HasColumnType("boolean");
 
@@ -183,6 +187,8 @@ namespace AiAssistant.Api.Data.Migrations
                     b.HasIndex("CreatedAt");
 
                     b.HasIndex("TicketScope");
+
+                    b.HasIndex("GuestKey", "CreatedAt");
 
                     b.ToTable("Questions", "ai", t =>
                         {

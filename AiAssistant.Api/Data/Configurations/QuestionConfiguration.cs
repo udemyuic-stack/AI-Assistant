@@ -19,6 +19,9 @@ public class QuestionConfiguration : IEntityTypeConfiguration<Question>
     {
         builder.Property(q => q.TicketScope).HasMaxLength(200);
         builder.Property(q => q.Status).HasMaxLength(20);
+        builder.Property(q => q.GuestKey).HasMaxLength(64);
+
+        builder.HasIndex(q => new { q.GuestKey, q.CreatedAt });
 
         builder.ToTable(t => t.HasCheckConstraint(
             "CK_Question_Status",

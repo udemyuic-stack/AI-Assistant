@@ -28,6 +28,7 @@ public class ChatOrchestrator(
         string question,
         RetrievalScope? scope = null,
         int? userId = null,
+        string? guestKey = null,
         [EnumeratorCancellation] CancellationToken ct = default)
     {
         // Pre-retrieval: slang normalisation, then optional expansion into
@@ -46,7 +47,7 @@ public class ChatOrchestrator(
         // client (browser, curl, a proxy) can give up before the model does,
         // and a row written only at the end never gets written for exactly
         // the requests worth investigating.
-        var questionId = await questionLog.BeginAsync(question, systemPrompt, scope, userId, ct);
+        var questionId = await questionLog.BeginAsync(question, systemPrompt, scope, userId, guestKey, ct);
 
         var answer = new StringBuilder();
         var completed = false;

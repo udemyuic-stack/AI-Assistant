@@ -16,6 +16,7 @@ public static class ChatEndpoints
         app.MapPost("/api/chat/stream", async (
             ChatRequest request,
             ChatOrchestrator orchestrator,
+            GuestLimiter guestLimiter,
             ILogger<Program> logger,
             HttpContext http,
             CancellationToken ct) =>
@@ -26,12 +27,32 @@ public static class ChatEndpoints
                 return;
             }
 
+            // Checked before the Ollama call, not after - the budget exists
+            // to stop the expensive resource from being spent once it's used
+            // up, not to record that it happened anyway.
+            string? guestKey = null;
+            if (request.UserId is null)
+            {
+                guestKey = http.Connection.RemoteIpAddress?.ToString() ?? "unknown";
+                var status = await guestLimiter.CheckAsync(guestKey, ct);
+
+                if (status.IsExceeded)
+                {
+                    await Results.Json(
+                        new { error = $"Mehmon uchun kunlik limit ({status.Limit} ta savol) tugadi. Tizimga kiring." },
+                        statusCode: StatusCodes.Status429TooManyRequests
+                    ).ExecuteAsync(http);
+                    return;
+                }
+            }
+
             http.Response.Headers.ContentType = "text/event-stream";
             http.Response.Headers.CacheControl = "no-cache";
 
             try
             {
-                await foreach (var chunk in orchestrator.AskAsync(request.Message, request.Scope(), request.UserId, ct))
+                await foreach (var chunk in orchestrator.AskAsync(
+                    request.Message, request.Scope(), request.UserId, guestKey, ct))
                     await WriteAsync(http, logger, request, chunk, ct);
             }
             catch (OllamaUnavailableException ex)
@@ -61,6 +82,7 @@ public static class ChatEndpoints
                 await WriteEventAsync(http, new
                 {
                     done = true,
+                    questionId = summary.QuestionId,
                     answeredFromContext = summary.AnsweredFromContext,
                     sources = summary.ContextUsed.Select(c => c.Source).Distinct()
                 }, ct);

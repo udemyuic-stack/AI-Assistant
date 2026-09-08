@@ -106,6 +106,7 @@ builder.Services.AddScoped<DocumentIndex>();
 builder.Services.AddScoped<DocumentLibrary>();
 builder.Services.AddScoped<WebScraperService>();
 builder.Services.AddScoped<QuestionLog>();
+builder.Services.AddScoped<GuestLimiter>();
 builder.Services.AddScoped<ChatOrchestrator>();
 
 var app = builder.Build();
@@ -118,5 +119,6 @@ app.MapChatEndpoints();
 app.MapDocumentEndpoints();
 app.MapSiteEndpoints();
 app.MapFeedbackEndpoints();
+app.MapRubricEndpoints();
 
 app.Run();

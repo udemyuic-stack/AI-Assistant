@@ -9,6 +9,15 @@ namespace AiAssistant.Api.Services;
 // Chat and embeddings, with model names applied and transport failures turned
 // into one exception type. No inference runs here - Ollama hosts the model and
 // this process only exchanges JSON with it.
+//
+// Generation goes through /api/generate (a flat prompt) rather than /api/chat
+// (role-structured messages), even though the external shape of
+// StreamChatAsync still takes (role, content) pairs. Measured on a similar
+// system: an 8B model handles a flat prompt more reliably than a chat
+// template, which depends on how the specific fine-tune was trained to parse
+// role markers. The public method keeps its shape so callers don't need to
+// know which endpoint answers it - that decision belongs here, and may
+// reverse itself on a larger model with a properly-tuned chat template.
 public class OllamaClient(IOllamaApi api, IOptions<OllamaOptions> options)
 {
     private readonly OllamaOptions _options = options.Value;
@@ -18,15 +27,18 @@ public class OllamaClient(IOllamaApi api, IOptions<OllamaOptions> options)
         double temperature,
         [EnumeratorCancellation] CancellationToken ct = default)
     {
-        var request = new OllamaChatRequest(
+        var (system, prompt) = FlattenToPrompt(messages);
+
+        var request = new OllamaGenerateRequest(
             _options.ChatModel,
-            messages.Select(m => new OllamaChatMessage(m.Role, m.Content)).ToList(),
+            prompt,
+            system,
             new OllamaChatOptions(temperature, _options.ChatContextTokens));
 
         // Opened outside the iterator loop: a try/catch cannot wrap a yield.
-        var stream = await OpenChatStreamAsync(request, ct);
+        var stream = await OpenGenerateStreamAsync(request, ct);
 
-        await foreach (var token in ReadTokensAsync(stream, ct))
+        await foreach (var token in ReadGenerateTokensAsync(stream, ct))
             yield return token;
     }
 
@@ -65,11 +77,30 @@ public class OllamaClient(IOllamaApi api, IOptions<OllamaOptions> options)
         return vectors;
     }
 
-    private async Task<Stream> OpenChatStreamAsync(OllamaChatRequest request, CancellationToken ct)
+    // Ollama's own "system" field is a distinct parameter from the prompt, so
+    // only the non-system messages fold into one block. Current callers pass
+    // exactly one of each, but this holds for any number of user/assistant
+    // turns a future history feature might add.
+    private static (string? System, string Prompt) FlattenToPrompt(
+        IEnumerable<(string Role, string Content)> messages)
+    {
+        string? system = null;
+        var rest = new List<string>();
+
+        foreach (var (role, content) in messages)
+        {
+            if (role == "system") system = content;
+            else rest.Add(content);
+        }
+
+        return (system, string.Join("\n\n", rest));
+    }
+
+    private async Task<Stream> OpenGenerateStreamAsync(OllamaGenerateRequest request, CancellationToken ct)
     {
         try
         {
-            return await api.StreamChatAsync(request, ct);
+            return await api.StreamGenerateAsync(request, ct);
         }
         catch (ApiException ex)
         {
@@ -85,7 +116,7 @@ public class OllamaClient(IOllamaApi api, IOptions<OllamaOptions> options)
         }
     }
 
-    private static async IAsyncEnumerable<string> ReadTokensAsync(
+    private static async IAsyncEnumerable<string> ReadGenerateTokensAsync(
         Stream stream,
         [EnumeratorCancellation] CancellationToken ct)
     {
@@ -97,21 +128,20 @@ public class OllamaClient(IOllamaApi api, IOptions<OllamaOptions> options)
             {
                 if (line.Length == 0) continue;
 
-                var token = ParseToken(line);
+                var token = ParseGenerateToken(line);
                 if (!string.IsNullOrEmpty(token))
                     yield return token;
             }
         }
     }
 
-    private static string? ParseToken(string line)
+    private static string? ParseGenerateToken(string line)
     {
         try
         {
             using var document = JsonDocument.Parse(line);
-            return document.RootElement.TryGetProperty("message", out var message) &&
-                   message.TryGetProperty("content", out var content)
-                ? content.GetString()
+            return document.RootElement.TryGetProperty("response", out var response)
+                ? response.GetString()
                 : null;
         }
         catch (JsonException)

@@ -13,6 +13,14 @@ public interface IOllamaApi
     [Post("/api/chat")]
     Task<Stream> StreamChatAsync([Body] OllamaChatRequest request, CancellationToken ct);
 
+    // A raw prompt instead of a role-structured message list. An 8B model's
+    // chat template can be applied inconsistently by whatever fine-tune
+    // produced it; a flat prompt sidesteps that entirely. Kept alongside
+    // StreamChatAsync rather than replacing it, since a larger model on
+    // better hardware may prefer the structured form again.
+    [Post("/api/generate")]
+    Task<Stream> StreamGenerateAsync([Body] OllamaGenerateRequest request, CancellationToken ct);
+
     [Post("/api/embed")]
     Task<OllamaEmbedResponse> EmbedAsync([Body] OllamaEmbedRequest request, CancellationToken ct);
 }
@@ -33,6 +41,16 @@ public record OllamaChatRequest(
 public record OllamaChatOptions(
     [property: JsonPropertyName("temperature")] double Temperature,
     [property: JsonPropertyName("num_ctx")] int ContextTokens);
+
+public record OllamaGenerateRequest(
+    [property: JsonPropertyName("model")] string Model,
+    [property: JsonPropertyName("prompt")] string Prompt,
+    [property: JsonPropertyName("system")] string? System,
+    [property: JsonPropertyName("options")] OllamaChatOptions Options)
+{
+    [JsonPropertyName("stream")]
+    public bool Stream => true;
+}
 
 public record OllamaEmbedRequest(
     [property: JsonPropertyName("model")] string Model,

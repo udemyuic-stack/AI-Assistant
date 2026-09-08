@@ -10,6 +10,12 @@ public class Question
     public string? TicketScope { get; set; }
     public int? UserId { get; set; }
 
+    // Set only when UserId is null - the key an anonymous visitor's question
+    // budget is counted against (client IP today; see GuestLimiter). Null for
+    // authenticated questions, where TicketSystem's own login is the identity
+    // and no separate budget applies.
+    public string? GuestKey { get; set; }
+
     public required string QuestionText { get; set; }
     public string? AnswerText { get; set; }
 

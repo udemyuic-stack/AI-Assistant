@@ -26,6 +26,7 @@ public class QuestionLog(AiDbContext db, ILogger<QuestionLog> logger)
         string systemPrompt,
         RetrievalScope? scope,
         int? userId,
+        string? guestKey,
         CancellationToken ct = default)
     {
         var question = new Question
@@ -34,6 +35,7 @@ public class QuestionLog(AiDbContext db, ILogger<QuestionLog> logger)
             SystemPromptUsed = systemPrompt,
             TicketScope = scope?.Value,
             UserId = userId,
+            GuestKey = userId is null ? guestKey : null,
             Status = "pending"
         };
 
