@@ -30,4 +30,12 @@ public class RagOptions
     // word, not synonyms across languages. Costs one extra Ollama call per
     // question, so it defaults off until the CPU-only host isn't the bottleneck.
     public bool QueryExpansionEnabled { get; set; } = false;
+
+    // HyDE: embed a hypothetical answer instead of the question. A question
+    // and the passage answering it are worded differently ("Litsenziya necha
+    // kunda beriladi?" vs "Litsenziya 30 kun ichida beriladi"), so a made-up
+    // answer often sits closer to the real passage than the question does.
+    // Costs one more model call on top of expansion - off until the host has
+    // a GPU. The guide marks it optional for the same reason.
+    public bool HydeEnabled { get; set; } = false;
 }

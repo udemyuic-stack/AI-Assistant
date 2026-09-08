@@ -186,7 +186,7 @@ namespace AiAssistant.Api.Data.Migrations
 
                     b.ToTable("Questions", "ai", t =>
                         {
-                            t.HasCheckConstraint("CK_Question_Status", "\"Status\" IN ('ok', 'no_chunks', 'embed_error', 'gen_error')");
+                            t.HasCheckConstraint("CK_Question_Status", "\"Status\" IN ('pending', 'ok', 'no_chunks', 'embed_error', 'gen_error', 'cancelled')");
                         });
                 });
 

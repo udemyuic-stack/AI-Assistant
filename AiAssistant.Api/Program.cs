@@ -105,6 +105,7 @@ builder.Services.AddScoped<QueryPreprocessor>();
 builder.Services.AddScoped<DocumentIndex>();
 builder.Services.AddScoped<DocumentLibrary>();
 builder.Services.AddScoped<WebScraperService>();
+builder.Services.AddScoped<QuestionLog>();
 builder.Services.AddScoped<ChatOrchestrator>();
 
 var app = builder.Build();
@@ -116,5 +117,6 @@ app.MapGet("/health", () => Results.Ok(new { status = "ok" }));
 app.MapChatEndpoints();
 app.MapDocumentEndpoints();
 app.MapSiteEndpoints();
+app.MapFeedbackEndpoints();
 
 app.Run();

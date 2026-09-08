@@ -10,6 +10,10 @@ public record AnswerSummary(
     bool LanguageDriftSuspected)
 {
     public bool AnsweredFromContext => ContextUsed.Count > 0;
+
+    // Set once the trace row exists. The client needs it to attach feedback
+    // to this specific answer.
+    public int? QuestionId { get; init; }
 }
 
 public abstract record AnswerEvent

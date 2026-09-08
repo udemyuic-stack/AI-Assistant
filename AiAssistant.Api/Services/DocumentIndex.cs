@@ -236,6 +236,7 @@ public class DocumentIndex
     };
 
     private static RetrievedChunk ToChunk(ScoredPoint point) => new(
+        QdrantPointId: point.Id.Num,
         Text: Payload(point, "text"),
         Source: Payload(point, "source"),
         Score: point.Score,

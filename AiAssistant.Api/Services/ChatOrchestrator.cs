@@ -17,6 +17,7 @@ public class ChatOrchestrator(
     OllamaClient ollama,
     DocumentIndex index,
     QueryPreprocessor preprocessor,
+    QuestionLog questionLog,
     IOptions<AssistantOptions> assistantOptions,
     IOptions<RagOptions> ragOptions)
 {
@@ -26,6 +27,7 @@ public class ChatOrchestrator(
     public async IAsyncEnumerable<AnswerEvent> AskAsync(
         string question,
         RetrievalScope? scope = null,
+        int? userId = null,
         [EnumeratorCancellation] CancellationToken ct = default)
     {
         // Pre-retrieval: slang normalisation, then optional expansion into
@@ -33,32 +35,59 @@ public class ChatOrchestrator(
         var phrasings = await preprocessor.PrepareAsync(question, ct);
         var retrieval = await index.SearchAsync(phrasings, scope, ct);
 
+        var systemPrompt = _assistant.SystemPrompt;
         var messages = new[]
         {
-            ("system", _assistant.SystemPrompt),
+            ("system", systemPrompt),
             ("user", BuildUserMessage(question, retrieval))
         };
 
-        var answer = new StringBuilder();
+        // Written before generation starts, not after: on a slow host the
+        // client (browser, curl, a proxy) can give up before the model does,
+        // and a row written only at the end never gets written for exactly
+        // the requests worth investigating.
+        var questionId = await questionLog.BeginAsync(question, systemPrompt, scope, userId, ct);
 
-        await foreach (var token in ollama.StreamChatAsync(messages, _rag.Temperature, ct))
+        var answer = new StringBuilder();
+        var completed = false;
+        AnswerSummary? finalSummary = null;
+
+        try
         {
-            answer.Append(token);
-            yield return new AnswerEvent.Token(token);
+            await foreach (var token in ollama.StreamChatAsync(messages, _rag.Temperature, ct))
+            {
+                answer.Append(token);
+                yield return new AnswerEvent.Token(token);
+            }
+            completed = true;
+        }
+        finally
+        {
+            var summary = new AnswerSummary(
+                FullText: answer.ToString(),
+                ContextUsed: retrieval.Chunks,
+                LanguageDriftSuspected: UzbekLanguageGuard.LooksLikeRussian(answer.ToString()))
+            {
+                QuestionId = questionId
+            };
+
+            var status = completed
+                ? (retrieval.IsEmpty ? "no_chunks" : "ok")
+                : ct.IsCancellationRequested ? "cancelled" : "gen_error";
+
+            // CancellationToken.None: this write is the point of the whole
+            // Begin/Complete split - it must happen even when `ct` is the
+            // thing that just got cancelled.
+            await questionLog.CompleteAsync(questionId, summary, status, CancellationToken.None);
+
+            if (completed) finalSummary = summary;
         }
 
-        var fullText = answer.ToString();
-
-        // Deliberately not auto-retried: tokens already streamed to the caller
-        // can't be un-sent, so a real fix means generating the full answer
-        // before streaming anything - doubling latency on an already-slow
-        // CPU host for a failure mode the system prompt's few-shot examples
-        // make rare in practice. Flag it; let the caller decide (re-ask,
-        // show a warning, log for the gold set).
-        yield return new AnswerEvent.Completed(new AnswerSummary(
-            FullText: fullText,
-            ContextUsed: retrieval.Chunks,
-            LanguageDriftSuspected: UzbekLanguageGuard.LooksLikeRussian(fullText)));
+        // Only reached on the success path: an exception from the loop above
+        // (cancellation or an Ollama failure) propagates past this point
+        // after the finally block has already recorded it - the caller's
+        // existing catch (OllamaUnavailableException) handles that case.
+        yield return new AnswerEvent.Completed(finalSummary!);
     }
 
     private static string BuildUserMessage(string question, RetrievalResult retrieval) =>

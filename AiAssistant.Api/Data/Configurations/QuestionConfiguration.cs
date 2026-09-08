@@ -6,7 +6,14 @@ namespace AiAssistant.Api.Data.Configurations;
 
 public class QuestionConfiguration : IEntityTypeConfiguration<Question>
 {
-    private static readonly string[] ValidStatuses = ["ok", "no_chunks", "embed_error", "gen_error"];
+    // "pending" is written before generation starts and never reaches the
+    // client as a final state - it only survives in the table if the request
+    // was cancelled or crashed mid-stream. A row stuck at "pending" is itself
+    // the diagnostic: it means a client (browser, curl, load balancer) gave
+    // up before the model finished, which the CPU-only host makes common
+    // enough that it needs to be visible, not silently lost.
+    private static readonly string[] ValidStatuses =
+        ["pending", "ok", "no_chunks", "embed_error", "gen_error", "cancelled"];
 
     public void Configure(EntityTypeBuilder<Question> builder)
     {

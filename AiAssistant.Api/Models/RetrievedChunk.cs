@@ -1,6 +1,13 @@
 namespace AiAssistant.Api.Models;
 
-public record RetrievedChunk(string Text, string Source, float Score, string Scope);
+// QdrantPointId is carried through retrieval so a trace can link an answer
+// back to the ContentChunk row for the exact vector that produced it.
+public record RetrievedChunk(
+    ulong QdrantPointId,
+    string Text,
+    string Source,
+    float Score,
+    string Scope);
 
 // Retrieval returns the chunks themselves, not a pre-joined blob. Callers that
 // only want prompt text call PromptContext; callers that need to record which
