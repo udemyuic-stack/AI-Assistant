@@ -120,5 +120,6 @@ app.MapDocumentEndpoints();
 app.MapSiteEndpoints();
 app.MapFeedbackEndpoints();
 app.MapRubricEndpoints();
+app.MapSettingsEndpoints();
 
 app.Run();

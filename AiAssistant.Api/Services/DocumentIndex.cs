@@ -102,6 +102,12 @@ public class DocumentIndex
     {
         await EnsureCollectionAsync(ct);
 
+        // Admin-tunable, DB-backed with the appsettings value as fallback -
+        // a slider change reaches traffic within the cache's TTL, no redeploy.
+        var topK = await _sysParams.GetAsync(SysParamKeys.RagTopK, _ragOptions.TopK, ct);
+        var threshold = await _sysParams.GetAsync(
+            SysParamKeys.RagSimilarityThreshold, _ragOptions.SimilarityThreshold, ct);
+
         var readable = scope is null || scope.Value.IsGlobal
             ? [RetrievalScope.GlobalValue]
             : new[] { RetrievalScope.GlobalValue, scope.Value.Value };
@@ -117,8 +123,8 @@ public class DocumentIndex
                 collectionName: _qdrantOptions.Collection,
                 vector: vector,
                 filter: scopeFilter,
-                limit: (ulong)_ragOptions.TopK,
-                scoreThreshold: _ragOptions.SimilarityThreshold,
+                limit: (ulong)topK,
+                scoreThreshold: threshold,
                 cancellationToken: ct);
 
             foreach (var candidate in candidates)

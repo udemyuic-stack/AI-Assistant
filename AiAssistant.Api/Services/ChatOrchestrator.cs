@@ -18,6 +18,7 @@ public class ChatOrchestrator(
     DocumentIndex index,
     QueryPreprocessor preprocessor,
     QuestionLog questionLog,
+    SysParamCache sysParams,
     IOptions<AssistantOptions> assistantOptions,
     IOptions<RagOptions> ragOptions)
 {
@@ -49,13 +50,15 @@ public class ChatOrchestrator(
         // the requests worth investigating.
         var questionId = await questionLog.BeginAsync(question, systemPrompt, scope, userId, guestKey, ct);
 
+        var temperature = await sysParams.GetAsync(SysParamKeys.RagTemperature, _rag.Temperature, ct);
+
         var answer = new StringBuilder();
         var completed = false;
         AnswerSummary? finalSummary = null;
 
         try
         {
-            await foreach (var token in ollama.StreamChatAsync(messages, _rag.Temperature, ct))
+            await foreach (var token in ollama.StreamChatAsync(messages, temperature, ct))
             {
                 answer.Append(token);
                 yield return new AnswerEvent.Token(token);
