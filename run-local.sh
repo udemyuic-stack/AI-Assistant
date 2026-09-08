@@ -35,6 +35,16 @@ set -a; source "$repo_dir/.env"; set +a
 
 dotnet build "$api_dir" --nologo --verbosity quiet
 
+# Content root defaults to the CURRENT directory when running a raw dll, not
+# the dll's own directory - launching from anywhere else means appsettings.json
+# is silently never found (the JSON provider is optional) and every setting
+# not overridden by an env var below quietly reverts to its C# class default.
+# Confirmed the hard way: Qdrant__GrpcPort was never set here, appsettings.json
+# said 6344, and without this cd the app used the class default (6334) instead
+# - writing every ingested document into a different Qdrant instance for an
+# entire session before it was caught.
+cd "$api_dir"
+
 ConnectionStrings__AiDb="${AI_DB_CONNECTION:-Host=localhost;Port=5433;Database=rag_test;Username=raguser;Password=devtest123;Search Path=ai}" \
 Storage__AccessKey="$MINIO_ROOT_USER" \
 Storage__SecretKey="$MINIO_ROOT_PASSWORD" \
