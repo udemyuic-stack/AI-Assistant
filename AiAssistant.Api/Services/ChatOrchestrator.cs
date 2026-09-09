@@ -28,7 +28,7 @@ public class ChatOrchestrator(
     public async IAsyncEnumerable<AnswerEvent> AskAsync(
         string question,
         RetrievalScope? scope = null,
-        int? userId = null,
+        string? userId = null,
         string? guestKey = null,
         [EnumeratorCancellation] CancellationToken ct = default)
     {

@@ -10,7 +10,7 @@ public class FeedbackMark
     public int QuestionId { get; set; }
     public Question Question { get; set; } = null!;
 
-    public int UserId { get; set; }
+    public required string UserId { get; set; }
     public required string Code { get; set; } // green | red
     public string? Comment { get; set; }
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;

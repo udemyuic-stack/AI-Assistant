@@ -97,7 +97,7 @@ public static class ChatEndpoints
     }
 }
 
-public record ChatRequest(string Message, string? TicketScope, int? UserId = null)
+public record ChatRequest(string Message, string? TicketScope, string? UserId = null)
 {
     public RetrievalScope? Scope() =>
         string.IsNullOrWhiteSpace(TicketScope) ? null : RetrievalScope.ForTicket(TicketScope);

@@ -25,7 +25,7 @@ public class QuestionLog(AiDbContext db, ILogger<QuestionLog> logger)
         string questionText,
         string systemPrompt,
         RetrievalScope? scope,
-        int? userId,
+        string? userId,
         string? guestKey,
         CancellationToken ct = default)
     {

@@ -8,7 +8,12 @@ public class Question
     public int Id { get; set; }
 
     public string? TicketScope { get; set; }
-    public int? UserId { get; set; }
+
+    // String, not int: TicketSystem's own User.UserId is a claims-based
+    // string identifier (ClaimTypes.NameIdentifier), not a numeric key. This
+    // schema takes whatever shape the identity actually has rather than
+    // forcing a lossy conversion at the boundary.
+    public string? UserId { get; set; }
 
     // Set only when UserId is null - the key an anonymous visitor's question
     // budget is counted against (client IP today; see GuestLimiter). Null for

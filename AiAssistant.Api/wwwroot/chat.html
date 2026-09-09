@@ -76,7 +76,7 @@ async function ask() {
       const data = JSON.parse(payload);
       if (data.token) answerEl.textContent += data.token;
       if (data.error) answerEl.textContent += '\n[XATO] ' + data.error;
-      if (data.done && data.sources && data.sources.length) {
+      if (data.done && data.answeredFromContext && data.sources && data.sources.length) {
         const src = document.createElement('div');
         src.className = 'sources';
         src.textContent = 'Manba: ' + data.sources.join(', ');

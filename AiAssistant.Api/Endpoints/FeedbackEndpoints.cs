@@ -119,4 +119,4 @@ public static class FeedbackEndpoints
     }
 }
 
-public record FeedbackRequest(int QuestionId, string Code, int UserId, string? Comment);
+public record FeedbackRequest(int QuestionId, string Code, string UserId, string? Comment);
