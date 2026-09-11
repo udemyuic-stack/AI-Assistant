@@ -46,6 +46,7 @@ dotnet build "$api_dir" --nologo --verbosity quiet
 cd "$api_dir"
 
 ConnectionStrings__AiDb="${AI_DB_CONNECTION:-Host=localhost;Port=5433;Database=rag_test;Username=raguser;Password=devtest123;Search Path=ai}" \
+Admin__ApiKey="$ADMIN_API_KEY" \
 Storage__AccessKey="$MINIO_ROOT_USER" \
 Storage__SecretKey="$MINIO_ROOT_PASSWORD" \
 Ollama__Host="$ollama_host" \

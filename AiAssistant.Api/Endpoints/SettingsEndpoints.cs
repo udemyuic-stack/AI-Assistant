@@ -27,8 +27,12 @@ public static class SettingsEndpoints
             });
 
             return Results.Ok(settings);
-        });
+        }).AddEndpointFilter<AdminKeyFilter>();
 
+        // Admin-only, and validated: these values feed retrieval and
+        // generation directly. An unvalidated TopK of 100000 or a negative
+        // threshold would degrade or break every subsequent question, and
+        // the failure would surface far from here.
         app.MapPut("/api/settings/{key}", async (
             string key,
             UpdateSettingRequest request,
@@ -38,9 +42,12 @@ public static class SettingsEndpoints
             if (!SysParamKeys.All.Contains(key))
                 return Results.BadRequest(new { error = $"Noma'lum sozlama: {key}" });
 
+            if (!SysParamKeys.IsValidValue(key, request.Value, out var reason))
+                return Results.BadRequest(new { error = reason });
+
             await cache.SetAsync(key, request.Value, ct);
             return Results.Ok(new { key, value = request.Value });
-        });
+        }).AddEndpointFilter<AdminKeyFilter>();
     }
 }
 

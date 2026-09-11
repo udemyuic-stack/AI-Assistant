@@ -1,3 +1,5 @@
+using System.Net;
+using System.Net.Sockets;
 using System.Threading.RateLimiting;
 using AiAssistant.Api.Configuration;
 using AiAssistant.Api.Data;
@@ -25,6 +27,7 @@ builder.Services.Configure<RagOptions>(builder.Configuration.GetSection(RagOptio
 builder.Services.Configure<AssistantOptions>(builder.Configuration.GetSection(AssistantOptions.SectionName));
 builder.Services.Configure<StorageOptions>(builder.Configuration.GetSection(StorageOptions.SectionName));
 builder.Services.Configure<RateLimitOptions>(builder.Configuration.GetSection(RateLimitOptions.SectionName));
+builder.Services.Configure<AdminOptions>(builder.Configuration.GetSection(AdminOptions.SectionName));
 
 // One named policy - "ollama" - applied to every endpoint that triggers a
 // model call (chat, upload, scrape). Partitioned per client IP since there is
@@ -66,10 +69,40 @@ builder.Services
         client.Timeout = TimeSpan.FromMinutes(options.TimeoutMinutes);
     });
 
+// Checked at connect time, not just against the URL string beforehand: a
+// SocketsHttpHandler.ConnectCallback sees the actual IP the connection is
+// about to open, after DNS resolution - a hostname that resolves to a
+// public IP during validation and a private one by the time of connect
+// (DNS rebinding) can't slip through. See PrivateNetworkGuard for why the
+// scraper specifically needs this - it fetches URLs an admin typed in.
 builder.Services.AddHttpClient("scraper", client =>
 {
     client.Timeout = TimeSpan.FromSeconds(30);
     client.DefaultRequestHeaders.UserAgent.ParseAdd("AiAssistant/1.0 (+geology-ministry)");
+}).ConfigurePrimaryHttpMessageHandler(() => new SocketsHttpHandler
+{
+    ConnectCallback = async (context, ct) =>
+    {
+        var entry = await Dns.GetHostEntryAsync(context.DnsEndPoint.Host, ct);
+        var address = entry.AddressList.FirstOrDefault()
+            ?? throw new SocketException((int)SocketError.HostNotFound);
+
+        if (PrivateNetworkGuard.IsBlocked(address))
+            throw new HttpRequestException(
+                $"'{context.DnsEndPoint.Host}' ({address}) ichki/ayrilgan tarmoq manzili - scraper uchun ruxsat etilmagan.");
+
+        var socket = new Socket(SocketType.Stream, ProtocolType.Tcp) { NoDelay = true };
+        try
+        {
+            await socket.ConnectAsync(address, context.DnsEndPoint.Port, ct);
+            return new NetworkStream(socket, ownsSocket: true);
+        }
+        catch
+        {
+            socket.Dispose();
+            throw;
+        }
+    }
 });
 
 builder.Services.AddSingleton<IMinioClient>(sp =>
@@ -108,6 +141,7 @@ builder.Services.AddScoped<WebScraperService>();
 builder.Services.AddScoped<QuestionLog>();
 builder.Services.AddScoped<GuestLimiter>();
 builder.Services.AddScoped<ChatOrchestrator>();
+builder.Services.AddScoped<AdminKeyFilter>();
 
 var app = builder.Build();
 

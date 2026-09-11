@@ -1,5 +1,6 @@
 using AiAssistant.Api.Data;
 using AiAssistant.Api.Data.Entities;
+using AiAssistant.Api.Services;
 using Microsoft.EntityFrameworkCore;
 
 namespace AiAssistant.Api.Endpoints;
@@ -59,6 +60,10 @@ public static class FeedbackEndpoints
         // Re-run these after any retrieval or prompt change and compare the
         // pass rate - without this, every later tuning decision (rerank,
         // expansion, chunk size) is guesswork.
+        //
+        // Admin-only: this returns every user's questions and answers in one
+        // response, which is exactly the kind of bulk disclosure that must not
+        // be reachable without a key.
         app.MapGet("/api/evaluation/gold-set", async (
             AiDbContext db,
             int limit,
@@ -78,11 +83,15 @@ public static class FeedbackEndpoints
                 .ToListAsync(ct);
 
             return Results.Ok(goldSet);
-        });
+        }).AddEndpointFilter<AdminKeyFilter>();
 
         // Full trace for one answer: the prompt the model saw and the chunks
         // that fed it, ranked. This is what makes "why did it say that"
         // answerable after the fact.
+        //
+        // Admin-only: a question id is a small integer, so without a gate
+        // anyone could walk 1..N and read every user's questions, answers,
+        // and the source material behind them.
         app.MapGet("/api/questions/{questionId:int}/trace", async (
             int questionId,
             AiDbContext db,
@@ -115,7 +124,7 @@ public static class FeedbackEndpoints
             return trace is null
                 ? Results.NotFound(new { error = $"Savol {questionId} topilmadi." })
                 : Results.Ok(trace);
-        });
+        }).AddEndpointFilter<AdminKeyFilter>();
     }
 }
 

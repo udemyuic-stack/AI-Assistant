@@ -27,6 +27,13 @@ public class DocumentIndex
     private readonly SemaphoreSlim _initLock = new(1, 1);
     private bool _collectionReady;
 
+    // Process-wide, not per-call: two ingests landing in the same millisecond
+    // used to collide on point IDs (baseId + i), silently overwriting one
+    // upload's vectors with another's. Seeded from the clock so IDs stay
+    // roughly time-ordered - useful for debugging in Qdrant's own tools -
+    // but uniqueness comes from the atomic increment, not the timestamp.
+    private static long _nextPointId = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds() * 1000;
+
     // QdrantClient is injected, not constructed here, so its lifetime (a
     // Singleton connection) stays independent of this class's own lifetime.
     // DocumentIndex needs SysParamCache, which needs AiDbContext, which is
@@ -70,7 +77,11 @@ public class DocumentIndex
         }
 
         var vectors = await EmbedInBatchesAsync(chunks, progress, ct);
-        var baseId = (ulong)DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
+
+        // Reserve a contiguous block atomically, so concurrent ingests never
+        // hand out the same id regardless of how many chunks either has or
+        // how close together the calls land.
+        var baseId = (ulong)Interlocked.Add(ref _nextPointId, chunks.Count) - (ulong)chunks.Count;
 
         progress?.Report("Bazaga yozilyapti...");
         var points = BuildPoints(baseId, document, language, chunks, vectors);
