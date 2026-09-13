@@ -16,7 +16,7 @@ public class WebScraperService(IHttpClientFactory factory, ILogger<WebScraperSer
     public async Task<ScrapedPage> ScrapeAsync(string url, CancellationToken ct = default)
     {
         var html = await FetchAsync(url, ct);
-        var text = ExtractText(html, url);
+        var text = await ExtractTextAsync(html, url, ct);
 
         if (string.IsNullOrWhiteSpace(text))
             throw new WebScraperException($"'{url}' sahifasidan matn topilmadi.");
@@ -42,13 +42,17 @@ public class WebScraperService(IHttpClientFactory factory, ILogger<WebScraperSer
         }
     }
 
-    private string ExtractText(string html, string url)
+    // Async, not GetAwaiter().GetResult(): blocking a thread pool thread here
+    // meant every concurrent scrape held one hostage for the duration of
+    // AngleSharp's parse - fine at one request at a time, a self-inflicted
+    // bottleneck once ingestion runs more than one page concurrently.
+    private async Task<string> ExtractTextAsync(string html, string url, CancellationToken ct)
     {
         IDocument document;
         try
         {
             var context = BrowsingContext.New(AngleSharp.Configuration.Default);
-            document = context.OpenAsync(req => req.Content(html), CancellationToken.None).GetAwaiter().GetResult();
+            document = await context.OpenAsync(req => req.Content(html), ct);
         }
         catch (Exception ex)
         {
