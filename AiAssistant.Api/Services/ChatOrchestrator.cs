@@ -67,10 +67,22 @@ public class ChatOrchestrator(
         }
         finally
         {
+            var fullText = answer.ToString();
+
+            // Retrieval finding chunks and the model actually using them are
+            // different facts. A greeting can score high enough against an
+            // unrelated document to clear the similarity threshold; the model
+            // still correctly says it found nothing. Checking the answer text
+            // itself is what tells these apart - retrieval.Chunks.Count > 0
+            // alone would call the second case "answered from context" too,
+            // which is what showed a source citation under a "not found"
+            // answer.
+            var declined = fullText.Contains(_assistant.NotFoundPhrase, StringComparison.OrdinalIgnoreCase);
             var summary = new AnswerSummary(
-                FullText: answer.ToString(),
+                FullText: fullText,
                 ContextUsed: retrieval.Chunks,
-                LanguageDriftSuspected: UzbekLanguageGuard.LooksLikeRussian(answer.ToString()))
+                LanguageDriftSuspected: UzbekLanguageGuard.LooksLikeRussian(fullText),
+                AnsweredFromContext: retrieval.Chunks.Count > 0 && !declined)
             {
                 QuestionId = questionId
             };

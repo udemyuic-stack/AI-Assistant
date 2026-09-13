@@ -11,4 +11,14 @@ public class AssistantOptions
         "asosida javob beradigan yordamchisiz.";
 
     public int GuestQuestionLimit { get; set; } = 5;
+
+    // The exact phrase SystemPrompt instructs the model to use when nothing
+    // relevant was found. Checked against the finished answer (see
+    // ChatOrchestrator) to tell "retrieval found something, and the model
+    // used it" apart from "retrieval found something irrelevant, and the
+    // model correctly said so". If a deployment writes its own SystemPrompt
+    // for a different domain, this must be updated to match whatever phrase
+    // that prompt actually asks for - otherwise every declined answer looks
+    // like a grounded one to the client.
+    public string NotFoundPhrase { get; set; } = "Bu haqida ma'lumot topilmadi";
 }

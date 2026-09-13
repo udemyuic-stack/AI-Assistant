@@ -7,10 +7,16 @@ namespace AiAssistant.Api.Models;
 public record AnswerSummary(
     string FullText,
     IReadOnlyList<RetrievedChunk> ContextUsed,
-    bool LanguageDriftSuspected)
+    bool LanguageDriftSuspected,
+    // Explicit, not derived from ContextUsed.Count: retrieval can hand back
+    // chunks that clear the similarity threshold without being relevant (a
+    // greeting scored against an unrelated document, say), and the model
+    // correctly answers "not found" anyway. ContextUsed.Count > 0 alone said
+    // "answered from context" in that case - true about retrieval, false
+    // about the answer. ChatOrchestrator sets this by checking the answer
+    // text itself against AssistantOptions.NotFoundPhrase.
+    bool AnsweredFromContext)
 {
-    public bool AnsweredFromContext => ContextUsed.Count > 0;
-
     // Set once the trace row exists. The client needs it to attach feedback
     // to this specific answer.
     public int? QuestionId { get; init; }
