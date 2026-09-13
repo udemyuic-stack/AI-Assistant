@@ -152,6 +152,7 @@ builder.Services.AddScoped<DocumentLibrary>();
 builder.Services.AddScoped<WebScraperService>();
 builder.Services.AddScoped<QuestionLog>();
 builder.Services.AddScoped<GuestLimiter>();
+builder.Services.AddScoped<InlineLinkIngestor>();
 builder.Services.AddScoped<ChatOrchestrator>();
 builder.Services.AddScoped<AdminKeyFilter>();
 

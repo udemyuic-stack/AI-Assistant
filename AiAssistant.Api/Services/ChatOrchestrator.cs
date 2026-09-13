@@ -19,6 +19,7 @@ public class ChatOrchestrator(
     QueryPreprocessor preprocessor,
     QuestionLog questionLog,
     SysParamCache sysParams,
+    InlineLinkIngestor linkIngestor,
     IOptions<AssistantOptions> assistantOptions,
     IOptions<RagOptions> ragOptions)
 {
@@ -32,10 +33,18 @@ public class ChatOrchestrator(
         string? guestKey = null,
         [EnumeratorCancellation] CancellationToken ct = default)
     {
+        // A link pasted directly into the question lands in the asker's own
+        // scope, not the shared knowledge base - falls back to a per-user
+        // scope when there's no ticket, so an anonymous guest's link doesn't
+        // land there either.
+        var effectiveScope = scope
+            ?? (userId is not null ? RetrievalScope.ForTicket($"user:{userId}") : RetrievalScope.Global);
+        await linkIngestor.IngestAnyLinkAsync(question, effectiveScope, ct);
+
         // Pre-retrieval: slang normalisation, then optional expansion into
         // several phrasings. Retrieval searches all of them and merges.
         var phrasings = await preprocessor.PrepareAsync(question, ct);
-        var retrieval = await index.SearchAsync(phrasings, scope, ct);
+        var retrieval = await index.SearchAsync(phrasings, effectiveScope, ct);
 
         var systemPrompt = _assistant.SystemPrompt;
         var messages = new[]
@@ -48,7 +57,7 @@ public class ChatOrchestrator(
         // client (browser, curl, a proxy) can give up before the model does,
         // and a row written only at the end never gets written for exactly
         // the requests worth investigating.
-        var questionId = await questionLog.BeginAsync(question, systemPrompt, scope, userId, guestKey, ct);
+        var questionId = await questionLog.BeginAsync(question, systemPrompt, effectiveScope, userId, guestKey, ct);
 
         var temperature = await sysParams.GetAsync(SysParamKeys.RagTemperature, _rag.Temperature, ct);
 
