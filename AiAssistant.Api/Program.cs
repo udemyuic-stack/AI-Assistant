@@ -14,11 +14,23 @@ using Refit;
 
 var builder = WebApplication.CreateBuilder(args);
 
+// No fallback connection string lives in appsettings.json - one used to sit
+// there as a "CHANGE_ME" placeholder, which meant a deployment that forgot
+// to set the real value didn't fail at startup; it failed confusingly on the
+// first request with a Postgres auth error, far from the actual mistake.
+// Failing here, with a message that says what to set, is the same "fail
+// shut, not fail open" call as AdminKeyFilter makes for a missing admin key.
+var aiDbConnectionString = builder.Configuration.GetConnectionString("AiDb");
+if (string.IsNullOrWhiteSpace(aiDbConnectionString) || aiDbConnectionString.Contains("CHANGE_ME"))
+    throw new InvalidOperationException(
+        "ConnectionStrings:AiDb sozlanmagan. ConnectionStrings__AiDb muhit o'zgaruvchisini yoki " +
+        "appsettings.Development.json/Vault orqali bering - ishlab chiqarish sirlari appsettings.json'da saqlanmaydi.");
+
 // Same physical Postgres instance as TicketSystem, own schema ("ai") and own
 // migration history - see Data/AiDbContext.cs for why the two never collide.
 builder.Services.AddDbContext<AiDbContext>(options =>
     options.UseNpgsql(
-        builder.Configuration.GetConnectionString("AiDb"),
+        aiDbConnectionString,
         npgsql => npgsql.MigrationsHistoryTable("__EFMigrationsHistory", "ai")));
 
 builder.Services.Configure<OllamaOptions>(builder.Configuration.GetSection(OllamaOptions.SectionName));
