@@ -1,5 +1,7 @@
 using System.Text.RegularExpressions;
+using AiAssistant.Api.Data;
 using AiAssistant.Api.Models;
+using Microsoft.EntityFrameworkCore;
 
 namespace AiAssistant.Api.Services;
 
@@ -16,6 +18,7 @@ namespace AiAssistant.Api.Services;
 public partial class InlineLinkIngestor(
     WebScraperService scraper,
     DocumentLibrary library,
+    AiDbContext db,
     ILogger<InlineLinkIngestor> logger)
 {
     [GeneratedRegex(@"https?://\S+")]
@@ -34,13 +37,35 @@ public partial class InlineLinkIngestor(
         // Trailing punctuation ("...kun.uz/maqola." at a sentence's end) is
         // part of the sentence, not the URL.
         var url = match.Value.TrimEnd('.', ',', ')', ']', '!', '?');
+        var fileName = WebScraperService.SourceFileName(url);
+
+        // Asking a follow-up question about a link already pasted re-sent the
+        // whole URL, and this method re-scraped, re-embedded, and re-indexed
+        // it every time: the same kun.uz article was stored twice, 42 chunks
+        // each, 18 minutes apart. Beyond the wasted fetch and embed, both
+        // copies then compete in retrieval - identical text can take two of
+        // the eight context slots and crowd out a chunk that would have said
+        // something new.
+        //
+        // Checked before the scrape, not after, so a repeat costs one indexed
+        // query rather than a full page fetch.
+        //
+        // Deliberately only here, not in the admin Sites/Pages scrape: an
+        // admin pressing "scrape" is asking for a refresh, so skipping that
+        // would break the one path whose entire purpose is to re-read a page.
+        if (await AlreadyIngestedAsync(fileName, scope, ct))
+        {
+            logger.LogInformation(
+                "Havola allaqachon o'qilgan, qayta yuklanmadi. Url={Url}, Scope={Scope}",
+                url, scope.Value);
+            return;
+        }
 
         try
         {
             var scraped = await scraper.ScrapeAsync(url, ct);
             await using var content = new MemoryStream(System.Text.Encoding.UTF8.GetBytes(scraped.Text));
 
-            var fileName = new Uri(url).Host + ".txt";
             var request = new IngestRequest(content, fileName, scope);
 
             await library.AddAsync(request, progress: null, ct);
@@ -54,4 +79,20 @@ public partial class InlineLinkIngestor(
             logger.LogWarning(ex, "Savoldagi havolani vektorlab bo'lmadi: {Url}", url);
         }
     }
+
+    // SourceFileName is a pure function of the URL, so it doubles as the key
+    // for "have we read this page into this scope already" without a URL
+    // column and the migration one would cost. Scope is carried on the chunks
+    // rather than the parent row, which is why the match reaches through them.
+    //
+    // Known limitation: a page whose content later changes is never re-read
+    // into a scope that already has it. Detecting that needs a content hash
+    // stored per document and a freshness window - worth doing, but a
+    // different change from stopping the same page being stored twice in the
+    // same session.
+    private Task<bool> AlreadyIngestedAsync(string fileName, RetrievalScope scope, CancellationToken ct) =>
+        db.ExtractedContents
+            .AsNoTracking()
+            .AnyAsync(e => e.SourceFileName == fileName
+                           && e.Chunks.Any(c => c.Scope == scope.Value), ct);
 }

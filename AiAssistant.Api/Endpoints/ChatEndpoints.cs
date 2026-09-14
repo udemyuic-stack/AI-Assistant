@@ -79,12 +79,23 @@ public static class ChatEndpoints
                         "Javob o'zbek tilidan chetlashgan bo'lishi mumkin. Scope={Scope}",
                         request.TicketScope ?? RetrievalScope.GlobalValue);
 
+                // Citations only when the answer actually came from them.
+                // Retrieval hands back its best matches whether or not any of
+                // them were relevant, so an answer of "Bu haqida ma'lumot
+                // topilmadi" still arrives with chunks attached - rendering
+                // those as "Manba: ..." tells the reader a source backed an
+                // answer that explicitly denied having one. Observed on
+                // "Buxoro viloyatida nechta konsessiya berilgan?", which
+                // correctly returned not-found while citing the Tashkent
+                // Wikipedia article.
                 await WriteEventAsync(http, new
                 {
                     done = true,
                     questionId = summary.QuestionId,
                     answeredFromContext = summary.AnsweredFromContext,
-                    sources = summary.ContextUsed.Select(c => c.Source).Distinct()
+                    sources = summary.AnsweredFromContext
+                        ? summary.ContextUsed.Select(c => c.Source).Distinct()
+                        : []
                 }, ct);
                 break;
         }

@@ -66,9 +66,11 @@ public static class SiteEndpoints
                 var scraped = await scraper.ScrapeAsync(page.Url, ct);
                 await using var content = ToStream(scraped.Text);
 
+                // The internal page id ("page-6.txt") means nothing to a
+                // user reading a source citation - the host and URL slug do.
                 var request = new IngestRequest(
                     content,
-                    FileName: $"page-{pageId}.txt",
+                    FileName: WebScraperService.SourceFileName(page.Url),
                     Scope: RetrievalScope.Global,
                     TargetPageId: pageId);
 

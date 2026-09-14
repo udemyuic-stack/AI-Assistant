@@ -29,10 +29,16 @@ public record OllamaChatMessage(
     [property: JsonPropertyName("role")] string Role,
     [property: JsonPropertyName("content")] string Content);
 
+// keep_alive sits at the top level of the request, not inside "options" -
+// it governs the model's residency in Ollama, not the sampling of one call.
+// Sent per request rather than set as OLLAMA_KEEP_ALIVE on the server so the
+// chat and embedding models can be given different lifetimes; the environment
+// variable is a single value for every model the host serves.
 public record OllamaChatRequest(
     [property: JsonPropertyName("model")] string Model,
     [property: JsonPropertyName("messages")] IReadOnlyList<OllamaChatMessage> Messages,
-    [property: JsonPropertyName("options")] OllamaChatOptions Options)
+    [property: JsonPropertyName("options")] OllamaChatOptions Options,
+    [property: JsonPropertyName("keep_alive")] string KeepAlive)
 {
     [JsonPropertyName("stream")]
     public bool Stream => true;
@@ -46,7 +52,8 @@ public record OllamaGenerateRequest(
     [property: JsonPropertyName("model")] string Model,
     [property: JsonPropertyName("prompt")] string Prompt,
     [property: JsonPropertyName("system")] string? System,
-    [property: JsonPropertyName("options")] OllamaChatOptions Options)
+    [property: JsonPropertyName("options")] OllamaChatOptions Options,
+    [property: JsonPropertyName("keep_alive")] string KeepAlive)
 {
     [JsonPropertyName("stream")]
     public bool Stream => true;
@@ -54,7 +61,8 @@ public record OllamaGenerateRequest(
 
 public record OllamaEmbedRequest(
     [property: JsonPropertyName("model")] string Model,
-    [property: JsonPropertyName("input")] IReadOnlyList<string> Input);
+    [property: JsonPropertyName("input")] IReadOnlyList<string> Input,
+    [property: JsonPropertyName("keep_alive")] string KeepAlive);
 
 public record OllamaEmbedResponse(
     [property: JsonPropertyName("embeddings")] float[][]? Embeddings);

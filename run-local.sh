@@ -18,9 +18,20 @@ log_file="$repo_dir/.run/api.log"
 ollama_host="${1:-http://localhost:11434}"
 
 # Vector width must match the embedding model, or Qdrant rejects the upsert.
-case "${EMBED_MODEL:-qwen3-embedding:8b}" in
-  nomic-embed-text*) vector_size=768 ;;
-  *)                 vector_size=4096 ;;
+# Verified directly against each model's own /api/embed response rather than
+# assumed from a spec sheet - the "*) 4096" fallback this used to end on
+# silently mis-sized bge-m3 (1024) as 4096 the one time a new model was added
+# without a matching case here.
+case "${EMBED_MODEL:-bge-m3}" in
+  nomic-embed-text*)     vector_size=768  ;;
+  bge-m3*)               vector_size=1024 ;;
+  qwen3-embedding*)      vector_size=4096 ;;
+  *)
+    echo "Noma'lum EMBED_MODEL='$EMBED_MODEL' - vector_size aniqlanmadi. Ushbu case" >&2
+    echo "bayonotiga qo'shing (avval 'ollama pull' qilib, /api/embed orqali" >&2
+    echo "haqiqiy o'lchamni tekshirib, keyin yozing - spetsifikatsiyaga ishonmang)." >&2
+    exit 1
+    ;;
 esac
 
 mkdir -p "$repo_dir/.run"
@@ -50,8 +61,8 @@ Admin__ApiKey="$ADMIN_API_KEY" \
 Storage__AccessKey="$MINIO_ROOT_USER" \
 Storage__SecretKey="$MINIO_ROOT_PASSWORD" \
 Ollama__Host="$ollama_host" \
-Ollama__ChatModel="${CHAT_MODEL:-qwen3:8b}" \
-Ollama__EmbedModel="${EMBED_MODEL:-qwen3-embedding:8b}" \
+Ollama__ChatModel="${CHAT_MODEL:-gemma4}" \
+Ollama__EmbedModel="${EMBED_MODEL:-bge-m3}" \
 Qdrant__VectorSize="$vector_size" \
 ASPNETCORE_URLS="http://localhost:5299" \
   setsid nohup dotnet "$api_dir/bin/Debug/net8.0/AiAssistant.Api.dll" \

@@ -1,0 +1,363 @@
+{
+  "izoh": [
+    "Retrieval va javob sifatini o'lchash uchun etalon to'plam.",
+    "",
+    "Har o'zgarishdan keyin (chunking, chegara, BM25, model) shu to'plam qayta",
+    "yurgiziladi va o'tish foizi solishtiriladi. Maqsad - regressiyani, ya'ni",
+    "avval to'g'ri ishlagan savolning buzilishini, taxmin qilmasdan ko'rish.",
+    "",
+    "Baholash LLM-hakam bilan emas, fakt tasdig'i bilan: 'bolishi_shart' matnlari",
+    "javobda bo'lishi, 'bolmasligi_shart' matnlari bo'lmasligi kerak. Hakam",
+    "modelning o'zi xato qiladi va bu mashinada har savolga yana bir gemma4",
+    "chaqiruvi qo'shadi.",
+    "",
+    "Toifalar:",
+    "  faktik   - korpusda aynan yozilgan bitta fakt",
+    "  mantiqiy - bir necha faktni birlashtirish yoki xulosa talab qiladi",
+    "  negativ  - korpusda YO'Q. Retrieval bo'sh qaytishi, model rad etishi kerak",
+    "  kirill   - korpus lotinda, savol kirillda. Skriptlararo qidiruvni sinaydi",
+    "",
+    "Faktlar korpusdan olingan, tashqi bilimdan emas. Manba matni o'zgarsa",
+    "(masalan kun.uz maqolani tahrirlasa) shu fayl ham yangilanishi kerak."
+  ],
+
+  "savollar": [
+    {
+      "id": "parom-kompaniya",
+      "toifa": "faktik",
+      "savol": "Indoneziyada halokatga uchragan parom qaysi kompaniyaga tegishli?",
+      "kutilgan_manba": "kun.uz-news-2026-09-13-indoneziyada-parom-halokatga-uchradi-130-kishi-bedarak-yo.txt",
+      "bolishi_shart": ["Virgo Transport 8"],
+      "bolmasligi_shart": ["KMP"],
+      "rad_javob_kutiladi": false
+    },
+    {
+      "id": "parom-bedarak",
+      "toifa": "faktik",
+      "savol": "Parom halokatida necha kishining taqdiri noma'lum qolmoqda?",
+      "kutilgan_manba": "kun.uz-news-2026-09-13-indoneziyada-parom-halokatga-uchradi-130-kishi-bedarak-yo.txt",
+      "bolishi_shart": ["130"],
+      "bolmasligi_shart": [],
+      "rad_javob_kutiladi": false
+    },
+    {
+      "id": "parom-bortda",
+      "toifa": "faktik",
+      "savol": "Paromda jami necha kishi bor edi?",
+      "kutilgan_manba": "kun.uz-news-2026-09-13-indoneziyada-parom-halokatga-uchradi-130-kishi-bedarak-yo.txt",
+      "bolishi_shart": ["243"],
+      "bolmasligi_shart": [],
+      "rad_javob_kutiladi": false
+    },
+    {
+      "id": "parom-qutqarilgan",
+      "toifa": "faktik",
+      "savol": "Parom halokatida necha kishi qutqarilgan?",
+      "kutilgan_manba": "kun.uz-news-2026-09-13-indoneziyada-parom-halokatga-uchradi-130-kishi-bedarak-yo.txt",
+      "bolishi_shart": ["107"],
+      "bolmasligi_shart": [],
+      "rad_javob_kutiladi": false
+    },
+    {
+      "id": "parom-halok",
+      "toifa": "faktik",
+      "savol": "Parom halokatida necha kishi halok bo'lgani tasdiqlangan?",
+      "kutilgan_manba": "kun.uz-news-2026-09-13-indoneziyada-parom-halokatga-uchradi-130-kishi-bedarak-yo.txt",
+      "bolishi_shart": ["olti"],
+      "bolmasligi_shart": [],
+      "rad_javob_kutiladi": false
+    },
+    {
+      "id": "parom-marshrut",
+      "toifa": "faktik",
+      "savol": "Parom qaysi shahardan qaysi shahar tomon yo'lga chiqqan?",
+      "kutilgan_manba": "kun.uz-news-2026-09-13-indoneziyada-parom-halokatga-uchradi-130-kishi-bedarak-yo.txt",
+      "bolishi_shart": ["Surabaya", "Banjarmasin"],
+      "bolmasligi_shart": [],
+      "rad_javob_kutiladi": false
+    },
+    {
+      "id": "parom-dengiz",
+      "toifa": "faktik",
+      "savol": "Parom qaysi dengizda cho'kib ketgan?",
+      "kutilgan_manba": "kun.uz-news-2026-09-13-indoneziyada-parom-halokatga-uchradi-130-kishi-bedarak-yo.txt",
+      "bolishi_shart": ["Yava"],
+      "bolmasligi_shart": [],
+      "rad_javob_kutiladi": false
+    },
+    {
+      "id": "parom-kapitan",
+      "toifa": "mantiqiy",
+      "savol": "Kapitan halokatdan oldin nima haqida xabar bergan?",
+      "kutilgan_manba": "kun.uz-news-2026-09-13-indoneziyada-parom-halokatga-uchradi-130-kishi-bedarak-yo.txt",
+      "bolishi_shart": ["qiysh"],
+      "bolmasligi_shart": [],
+      "rad_javob_kutiladi": false
+    },
+    {
+      "id": "parom-sabab",
+      "toifa": "mantiqiy",
+      "savol": "Parom halokatiga qanday sharoit sabab bo'lgan?",
+      "kutilgan_manba": "kun.uz-news-2026-09-13-indoneziyada-parom-halokatga-uchradi-130-kishi-bedarak-yo.txt",
+      "bolishi_shart": ["ob-havo"],
+      "bolmasligi_shart": [],
+      "rad_javob_kutiladi": false
+    },
+    {
+      "id": "parom-orollar",
+      "toifa": "mantiqiy",
+      "savol": "Parom qaysi ikki orol o'rtasida qatnagan?",
+      "kutilgan_manba": "kun.uz-news-2026-09-13-indoneziyada-parom-halokatga-uchradi-130-kishi-bedarak-yo.txt",
+      "bolishi_shart": ["Yava", "Kalimantan"],
+      "bolmasligi_shart": [],
+      "rad_javob_kutiladi": false
+    },
+
+    {
+      "id": "geologiya-tarif",
+      "toifa": "faktik",
+      "savol": "Geologiya nimani o'rganadi?",
+      "kutilgan_manba": "uz.wikipedia.org-wiki-Geologiya.txt",
+      "bolishi_shart": ["Yer"],
+      "bolmasligi_shart": [],
+      "rad_javob_kutiladi": false
+    },
+    {
+      "id": "geologiya-termin-muallif",
+      "toifa": "faktik",
+      "savol": "Geologiya terminini birinchi marta kim ishlatgan?",
+      "kutilgan_manba": "uz.wikipedia.org-wiki-Geologiya.txt",
+      "bolishi_shart": ["Esholt"],
+      "bolmasligi_shart": [],
+      "rad_javob_kutiladi": false
+    },
+    {
+      "id": "geologiya-termin-yil",
+      "toifa": "faktik",
+      "savol": "Geologiya termini qaysi yilda birinchi marta ishlatilgan?",
+      "kutilgan_manba": "uz.wikipedia.org-wiki-Geologiya.txt",
+      "bolishi_shart": ["1657"],
+      "bolmasligi_shart": [],
+      "rad_javob_kutiladi": false
+    },
+    {
+      "id": "geologiya-metod",
+      "toifa": "faktik",
+      "savol": "Geologiyaning umumiy metodi qanday ataladi?",
+      "kutilgan_manba": "uz.wikipedia.org-wiki-Geologiya.txt",
+      "bolishi_shart": ["qiyosiy-tarixiy"],
+      "bolmasligi_shart": [],
+      "rad_javob_kutiladi": false
+    },
+    {
+      "id": "geologiya-tarmoqlar",
+      "toifa": "mantiqiy",
+      "savol": "Geologiyaning qanday tarmoqlari bor?",
+      "kutilgan_manba": "uz.wikipedia.org-wiki-Geologiya.txt",
+      "bolishi_shart": ["tektonika"],
+      "bolmasligi_shart": [],
+      "rad_javob_kutiladi": false
+    },
+    {
+      "id": "geologiya-amaliy",
+      "toifa": "mantiqiy",
+      "savol": "Geologiyaning amaliy ahamiyatga ega tarmoqlari qaysilar?",
+      "kutilgan_manba": "uz.wikipedia.org-wiki-Geologiya.txt",
+      "bolishi_shart": ["gidrogeologiya"],
+      "bolmasligi_shart": [],
+      "rad_javob_kutiladi": false
+    },
+    {
+      "id": "geologiya-mustaqil-fan",
+      "toifa": "faktik",
+      "savol": "Geologiya qaysi asrda mustaqil fanga aylangan?",
+      "kutilgan_manba": "uz.wikipedia.org-wiki-Geologiya.txt",
+      "bolishi_shart": ["XVIII"],
+      "bolmasligi_shart": [],
+      "rad_javob_kutiladi": false
+    },
+
+    {
+      "id": "toshkent-maydon",
+      "toifa": "faktik",
+      "savol": "Toshkent shahrining maydoni qancha?",
+      "kutilgan_manba": "uz.wikipedia.org-wiki-Toshkent.txt",
+      "bolishi_shart": ["631"],
+      "bolmasligi_shart": [],
+      "rad_javob_kutiladi": false
+    },
+    {
+      "id": "toshkent-tumanlar",
+      "toifa": "faktik",
+      "savol": "Toshkent nechta tumanga bo'lingan?",
+      "kutilgan_manba": "uz.wikipedia.org-wiki-Toshkent.txt",
+      "bolishi_shart": ["12"],
+      "bolmasligi_shart": [],
+      "rad_javob_kutiladi": false
+    },
+    {
+      "id": "toshkent-balandlik",
+      "toifa": "faktik",
+      "savol": "Toshkent markazining dengiz sathidan balandligi qancha?",
+      "kutilgan_manba": "uz.wikipedia.org-wiki-Toshkent.txt",
+      "bolishi_shart": ["455"],
+      "bolmasligi_shart": [],
+      "rad_javob_kutiladi": false
+    },
+    {
+      "id": "toshkent-eski-nomlar",
+      "toifa": "faktik",
+      "savol": "Toshkentning avvalgi nomlari qanday bo'lgan?",
+      "kutilgan_manba": "uz.wikipedia.org-wiki-Toshkent.txt",
+      "bolishi_shart": ["Choch"],
+      "bolmasligi_shart": [],
+      "rad_javob_kutiladi": false
+    },
+    {
+      "id": "toshkent-ilk-eslatilishi",
+      "toifa": "faktik",
+      "savol": "Toshkent ilk marta qachon eslatilgan?",
+      "kutilgan_manba": "uz.wikipedia.org-wiki-Toshkent.txt",
+      "bolishi_shart": ["asr"],
+      "bolmasligi_shart": [],
+      "rad_javob_kutiladi": false
+    },
+    {
+      "id": "toshkent-telefon-kod",
+      "toifa": "faktik",
+      "savol": "Toshkentning telefon kodi qanday?",
+      "kutilgan_manba": "uz.wikipedia.org-wiki-Toshkent.txt",
+      "bolishi_shart": ["71"],
+      "bolmasligi_shart": [],
+      "rad_javob_kutiladi": false
+    },
+    {
+      "id": "toshkent-vaqt-mintaqasi",
+      "toifa": "faktik",
+      "savol": "Toshkent qaysi vaqt mintaqasida joylashgan?",
+      "kutilgan_manba": "uz.wikipedia.org-wiki-Toshkent.txt",
+      "bolishi_shart": ["UTC+5"],
+      "bolmasligi_shart": [],
+      "rad_javob_kutiladi": false
+    },
+    {
+      "id": "toshkent-milliy-tarkib",
+      "toifa": "mantiqiy",
+      "savol": "Toshkent aholisining milliy tarkibida o'zbeklar ulushi qancha?",
+      "kutilgan_manba": "uz.wikipedia.org-wiki-Toshkent.txt",
+      "bolishi_shart": ["63"],
+      "bolmasligi_shart": [],
+      "rad_javob_kutiladi": false
+    },
+    {
+      "id": "toshkent-joylashuv",
+      "toifa": "mantiqiy",
+      "savol": "Toshkent O'zbekistonning qaysi qismida va qaysi davlat chegarasiga yaqin joylashgan?",
+      "kutilgan_manba": "uz.wikipedia.org-wiki-Toshkent.txt",
+      "bolishi_shart": ["Qozog"],
+      "bolmasligi_shart": [],
+      "rad_javob_kutiladi": false
+    },
+    {
+      "id": "toshkent-maqom",
+      "toifa": "faktik",
+      "savol": "Toshkent O'zbekistonda qanday maqomga ega?",
+      "kutilgan_manba": "uz.wikipedia.org-wiki-Toshkent.txt",
+      "bolishi_shart": ["poytaxt"],
+      "bolmasligi_shart": [],
+      "rad_javob_kutiladi": false
+    },
+
+    {
+      "id": "kirill-parom-kompaniya",
+      "toifa": "kirill",
+      "savol": "Индонезияда ҳалокатга учраган паром қайси компанияга тегишли?",
+      "kutilgan_manba": "kun.uz-news-2026-09-13-indoneziyada-parom-halokatga-uchradi-130-kishi-bedarak-yo.txt",
+      "bolishi_shart": ["Virgo Transport 8"],
+      "bolmasligi_shart": [],
+      "rad_javob_kutiladi": false
+    },
+    {
+      "id": "kirill-geologiya",
+      "toifa": "kirill",
+      "savol": "Геология нимани ўрганади?",
+      "kutilgan_manba": "uz.wikipedia.org-wiki-Geologiya.txt",
+      "bolishi_shart": ["Yer"],
+      "bolmasligi_shart": [],
+      "rad_javob_kutiladi": false
+    },
+    {
+      "id": "kirill-toshkent-maydon",
+      "toifa": "kirill",
+      "savol": "Тошкент шаҳрининг майдони қанча?",
+      "kutilgan_manba": "uz.wikipedia.org-wiki-Toshkent.txt",
+      "bolishi_shart": ["631"],
+      "bolmasligi_shart": [],
+      "rad_javob_kutiladi": false
+    },
+    {
+      "id": "kirill-parom-bedarak",
+      "toifa": "kirill",
+      "savol": "Паром ҳалокатида неча кишининг тақдири номаълум?",
+      "kutilgan_manba": "kun.uz-news-2026-09-13-indoneziyada-parom-halokatga-uchradi-130-kishi-bedarak-yo.txt",
+      "bolishi_shart": ["130"],
+      "bolmasligi_shart": [],
+      "rad_javob_kutiladi": false
+    },
+
+    {
+      "id": "negativ-buxoro-konsessiya",
+      "toifa": "negativ",
+      "savol": "Buxoro viloyatida nechta konsessiya berilgan?",
+      "kutilgan_manba": null,
+      "bolishi_shart": [],
+      "bolmasligi_shart": [],
+      "rad_javob_kutiladi": true
+    },
+    {
+      "id": "negativ-samarqand-aholi",
+      "toifa": "negativ",
+      "savol": "Samarqand shahrining aholisi qancha?",
+      "kutilgan_manba": null,
+      "bolishi_shart": [],
+      "bolmasligi_shart": [],
+      "rad_javob_kutiladi": true
+    },
+    {
+      "id": "negativ-litsenziya-muddat",
+      "toifa": "negativ",
+      "savol": "Konchilik litsenziyasi necha kun ichida beriladi?",
+      "kutilgan_manba": null,
+      "bolishi_shart": [],
+      "bolmasligi_shart": [],
+      "rad_javob_kutiladi": true
+    },
+    {
+      "id": "negativ-parom-narx",
+      "toifa": "negativ",
+      "savol": "Halokatga uchragan paromda chipta narxi qancha edi?",
+      "kutilgan_manba": null,
+      "bolishi_shart": [],
+      "bolmasligi_shart": [],
+      "rad_javob_kutiladi": true
+    },
+    {
+      "id": "negativ-toshkent-metro-narx",
+      "toifa": "negativ",
+      "savol": "Toshkent metrosida bir safar narxi qancha?",
+      "kutilgan_manba": null,
+      "bolishi_shart": [],
+      "bolmasligi_shart": [],
+      "rad_javob_kutiladi": true
+    },
+    {
+      "id": "negativ-geologiya-maosh",
+      "toifa": "negativ",
+      "savol": "O'zbekistonda geolog mutaxassisning o'rtacha oylik maoshi qancha?",
+      "kutilgan_manba": null,
+      "bolishi_shart": [],
+      "bolmasligi_shart": [],
+      "rad_javob_kutiladi": true
+    }
+  ]
+}

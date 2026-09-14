@@ -90,7 +90,10 @@ public class ChatOrchestrator(
             var summary = new AnswerSummary(
                 FullText: fullText,
                 ContextUsed: retrieval.Chunks,
-                LanguageDriftSuspected: UzbekLanguageGuard.LooksLikeRussian(fullText),
+                // Script, not just language: an answer in Uzbek Cyrillic is as
+                // much a drift from what was asked as one in Russian, and the
+                // Russian-only letter check never saw it.
+                LanguageDriftSuspected: UzbekLanguageGuard.LooksWrongScript(fullText),
                 AnsweredFromContext: retrieval.Chunks.Count > 0 && !declined)
             {
                 QuestionId = questionId

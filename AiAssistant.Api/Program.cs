@@ -34,6 +34,7 @@ builder.Services.AddDbContext<AiDbContext>(options =>
         npgsql => npgsql.MigrationsHistoryTable("__EFMigrationsHistory", "ai")));
 
 builder.Services.Configure<OllamaOptions>(builder.Configuration.GetSection(OllamaOptions.SectionName));
+builder.Configuration.GetSection(OllamaOptions.SectionName).Get<OllamaOptions>()?.Validate();
 builder.Services.Configure<QdrantOptions>(builder.Configuration.GetSection(QdrantOptions.SectionName));
 builder.Services.Configure<RagOptions>(builder.Configuration.GetSection(RagOptions.SectionName));
 builder.Services.Configure<AssistantOptions>(builder.Configuration.GetSection(AssistantOptions.SectionName));
@@ -168,5 +169,6 @@ app.MapSiteEndpoints();
 app.MapFeedbackEndpoints();
 app.MapRubricEndpoints();
 app.MapSettingsEndpoints();
+app.MapEvaluationEndpoints();
 
 app.Run();

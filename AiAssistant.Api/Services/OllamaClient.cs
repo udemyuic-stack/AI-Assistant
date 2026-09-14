@@ -33,7 +33,8 @@ public class OllamaClient(IOllamaApi api, IOptions<OllamaOptions> options)
             _options.ChatModel,
             prompt,
             system,
-            new OllamaChatOptions(temperature, _options.ChatContextTokens));
+            new OllamaChatOptions(temperature, _options.ChatContextTokens),
+            _options.ChatKeepAlive);
 
         // Opened outside the iterator loop: a try/catch cannot wrap a yield.
         var stream = await OpenGenerateStreamAsync(request, ct);
@@ -55,7 +56,8 @@ public class OllamaClient(IOllamaApi api, IOptions<OllamaOptions> options)
         OllamaEmbedResponse response;
         try
         {
-            response = await api.EmbedAsync(new OllamaEmbedRequest(_options.EmbedModel, texts), ct);
+            response = await api.EmbedAsync(
+                new OllamaEmbedRequest(_options.EmbedModel, texts, _options.EmbedKeepAlive), ct);
         }
         catch (ApiException ex)
         {
