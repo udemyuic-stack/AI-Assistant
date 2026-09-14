@@ -16,7 +16,8 @@
     </PackageReference>
     <PackageReference Include="Minio" Version="7.0.0" />
     <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" Version="8.0.11" />
-    <PackageReference Include="Qdrant.Client" Version="1.9.0" />
+    <PackageReference Include="NPOI" Version="2.7.1" />
+    <PackageReference Include="Qdrant.Client" Version="1.19.0" />
     <PackageReference Include="PdfPig" Version="0.1.9" />
     <PackageReference Include="Refit.HttpClientFactory" Version="15.2.0" />
   </ItemGroup>

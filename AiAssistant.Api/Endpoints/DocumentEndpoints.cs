@@ -50,6 +50,14 @@ public static class DocumentEndpoints
                 logger.LogError(ex, "Fayl saqlanmadi. Fayl={FileName}", file.FileName);
                 return Results.Problem("Fayl ombori mavjud emas.", statusCode: StatusCodes.Status503ServiceUnavailable);
             }
+            catch (DocumentExtractionException ex)
+            {
+                // 400, not 503: the service is fine, this specific file's
+                // content could not be read (most often a scanned PDF with no
+                // text layer) - a retry against the same file will not help.
+                logger.LogWarning(ex, "Matn chiqarilmadi. Fayl={FileName}", file.FileName);
+                return Results.Problem(ex.Message, statusCode: StatusCodes.Status400BadRequest);
+            }
         }).RequireRateLimiting("ollama");
 
         // What is actually in the knowledge base. The upload endpoint above

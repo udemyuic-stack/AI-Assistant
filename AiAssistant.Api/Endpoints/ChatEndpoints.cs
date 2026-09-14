@@ -52,7 +52,7 @@ public static class ChatEndpoints
             try
             {
                 await foreach (var chunk in orchestrator.AskAsync(
-                    request.Message, request.Scope(), request.UserId, guestKey, ct))
+                    request.Message, request.Scope(), request.UserId, guestKey, request.History, ct))
                     await WriteAsync(http, logger, request, chunk, ct);
             }
             catch (OllamaUnavailableException ex)
@@ -108,7 +108,8 @@ public static class ChatEndpoints
     }
 }
 
-public record ChatRequest(string Message, string? TicketScope, string? UserId = null)
+public record ChatRequest(
+    string Message, string? TicketScope, string? UserId = null, IReadOnlyList<HistoryTurn>? History = null)
 {
     public RetrievalScope? Scope() =>
         string.IsNullOrWhiteSpace(TicketScope) ? null : RetrievalScope.ForTicket(TicketScope);

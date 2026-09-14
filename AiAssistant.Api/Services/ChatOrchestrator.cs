@@ -17,6 +17,7 @@ public class ChatOrchestrator(
     OllamaClient ollama,
     DocumentIndex index,
     QueryPreprocessor preprocessor,
+    HistoryContextualizer historyContextualizer,
     QuestionLog questionLog,
     SysParamCache sysParams,
     InlineLinkIngestor linkIngestor,
@@ -31,8 +32,16 @@ public class ChatOrchestrator(
         RetrievalScope? scope = null,
         string? userId = null,
         string? guestKey = null,
+        IReadOnlyList<HistoryTurn>? history = null,
         [EnumeratorCancellation] CancellationToken ct = default)
     {
+        // Capped here, not trusted from the caller - see AssistantOptions
+        // .MaxHistoryTurns for why an unbounded history is a real cost, not
+        // just a tidiness concern.
+        var recentHistory = (history ?? [])
+            .TakeLast(_assistant.MaxHistoryTurns)
+            .ToList();
+
         // A link pasted directly into the question lands in the asker's own
         // scope, not the shared knowledge base - falls back to a per-user
         // scope when there's no ticket, so an anonymous guest's link doesn't
@@ -41,16 +50,23 @@ public class ChatOrchestrator(
             ?? (userId is not null ? RetrievalScope.ForTicket($"user:{userId}") : RetrievalScope.Global);
         await linkIngestor.IngestAnyLinkAsync(question, effectiveScope, ct);
 
+        // Resolved once, up front: a follow-up like "u qachon bo'lgan?" has
+        // to name what "u" is before either retrieval or expansion can do
+        // anything useful with it. The *original* question is still what
+        // gets logged and what the model sees as "Savol:" in its own prompt
+        // (below) - only the text handed to search changes.
+        var retrievalQuestion = await historyContextualizer.ResolveAsync(question, recentHistory, ct);
+
         // Pre-retrieval: slang normalisation, then optional expansion into
         // several phrasings. Retrieval searches all of them and merges.
-        var phrasings = await preprocessor.PrepareAsync(question, ct);
+        var phrasings = await preprocessor.PrepareAsync(retrievalQuestion, ct);
         var retrieval = await index.SearchAsync(phrasings, effectiveScope, ct);
 
         var systemPrompt = _assistant.SystemPrompt;
         var messages = new[]
         {
             ("system", systemPrompt),
-            ("user", BuildUserMessage(question, retrieval))
+            ("user", BuildUserMessage(question, retrieval, recentHistory))
         };
 
         // Written before generation starts, not after: on a slow host the
@@ -118,8 +134,19 @@ public class ChatOrchestrator(
         yield return new AnswerEvent.Completed(finalSummary!);
     }
 
-    private static string BuildUserMessage(string question, RetrievalResult retrieval) =>
-        retrieval.IsEmpty
-            ? question
-            : $"Kontekst:\n\n{retrieval.PromptContext}\n\n---\n\nSavol: {question}";
+    private static string BuildUserMessage(
+        string question, RetrievalResult retrieval, IReadOnlyList<HistoryTurn> history)
+    {
+        var historyBlock = history.Count == 0
+            ? string.Empty
+            : "Oldingi suhbat:\n" +
+              string.Join("\n", history.Select(h => $"Foydalanuvchi: {h.Question}\nYordamchi: {h.Answer}")) +
+              "\n\n";
+
+        var contextBlock = retrieval.IsEmpty
+            ? string.Empty
+            : $"Kontekst:\n\n{retrieval.PromptContext}\n\n---\n\n";
+
+        return $"{historyBlock}{contextBlock}Savol: {question}";
+    }
 }

@@ -15,7 +15,12 @@ api_dir="$repo_dir/AiAssistant.Api"
 pid_file="$repo_dir/.run/api.pid"
 log_file="$repo_dir/.run/api.log"
 
-ollama_host="${1:-http://localhost:11434}"
+# No default: localhost:11434 is a bare-metal Ollama install squatting on
+# the port with zero models pulled (see docs/production-readiness.md). A
+# default pointing at it would launch cleanly, pass /health, and then fail
+# every single question with "Model hozir mavjud emas" - a silent
+# misconfiguration discovered one Refit 404 at a time instead of here.
+ollama_host="${1:?Ollama manzili kerak: ./run-local.sh http://localhost:11435 (yoki Colab tunnel URL)}"
 
 # Vector width must match the embedding model, or Qdrant rejects the upsert.
 # Verified directly against each model's own /api/embed response rather than

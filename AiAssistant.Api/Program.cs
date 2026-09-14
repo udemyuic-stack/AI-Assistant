@@ -146,8 +146,10 @@ builder.Services.AddSingleton<DocumentStorage>();
 // SlangDictionary), which is Scoped. A Singleton holding it would be a
 // captive dependency - one DbContext shared across every concurrent request.
 builder.Services.AddScoped<SysParamCache>();
+builder.Services.AddScoped<Bm25Index>();
 builder.Services.AddScoped<SlangDictionary>();
 builder.Services.AddScoped<QueryPreprocessor>();
+builder.Services.AddScoped<HistoryContextualizer>();
 builder.Services.AddScoped<DocumentIndex>();
 builder.Services.AddScoped<DocumentLibrary>();
 builder.Services.AddScoped<WebScraperService>();

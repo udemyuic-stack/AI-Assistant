@@ -21,4 +21,13 @@ public class AssistantOptions
     // that prompt actually asks for - otherwise every declined answer looks
     // like a grounded one to the client.
     public string NotFoundPhrase { get; set; } = "Bu haqida ma'lumot topilmadi";
+
+    // Capped server-side regardless of what a client sends: every extra turn
+    // costs prompt tokens twice over (once in the history-resolution call,
+    // once in generation) inside a fixed ChatContextTokens budget shared with
+    // the retrieved chunks - an unbounded history would eventually crowd out
+    // the context that actually answers the question. Four turns is enough
+    // for the immediate-follow-up case ("u qachon bo'lgan?") this exists for,
+    // without eating deeply into that budget.
+    public int MaxHistoryTurns { get; set; } = 4;
 }

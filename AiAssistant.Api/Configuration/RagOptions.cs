@@ -38,4 +38,14 @@ public class RagOptions
     // Costs one more model call on top of expansion - off until the host has
     // a GPU. The guide marks it optional for the same reason.
     public bool HydeEnabled { get; set; } = false;
+
+    // Sentence-window retrieval: after ranking, pull in this many chunks on
+    // each side of every kept chunk from the same source document. A fact
+    // split across a chunk boundary - a figure in one sentence, what it
+    // counts introduced in the next - can rank low on either half alone even
+    // though the whole passage clearly answers the question; the neighbour
+    // is fetched by an exact (objectKey, chunkIndex) match, not a second
+    // vector search, so it costs a Qdrant scroll, not another embedding.
+    // 0 disables it and reproduces the exact old behaviour.
+    public int RetrievalWindowSize { get; set; } = 1;
 }
